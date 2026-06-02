@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -300,71 +301,13 @@
         async function fetchTimes(dateStr) {
             showLoading(true, "尋找空檔中...");
             try {
-                // 後台只問「這天已有哪些預約」，設定已在頁面載入時取得
-                const occupied = await callAPI('getSlots', { dateStr: dateStr });
-                // 前台自己用 systemSettings 計算空檔（速度快、連動後台設定）
-                const slots = calcAvailableSlots(dateStr, occupied);
+                const slots = await callAPI('getSlots', { dateStr: dateStr, serviceName: bookingData.service });
                 renderTimeSlots(slots);
             } catch(e) {
                 alert("讀取時段失敗");
             } finally {
                 showLoading(false);
             }
-        }
-
-        // 前台計算空檔：用已載入的 systemSettings 判斷哪些時間可約
-        function calcAvailableSlots(dateStr, occupied) {
-            const { dayBookings, calEvents } = occupied;
-            const config   = systemSettings.config   || {};
-            const schedule = systemSettings.schedule || [];
-            const services = systemSettings.services || [];
-
-            const minNoticeHours = Number(config.minNoticeHours) || 3;
-            const maxCapacity    = Number(config.maxCap)          || 1;
-
-            // 根據日期找對應的星期設定
-            const dateObj  = new Date(dateStr.replace(/-/g, '/'));
-            const dayNames = ['週日','週一','週二','週三','週四','週五','週六'];
-            const dayName  = dayNames[dateObj.getDay()];
-            const schedDay = schedule.find(s => s.day === dayName);
-            if (!schedDay || !schedDay.isOpen) return [];
-
-            const openTime  = schedDay.openTime  || '10:00';
-            const closeTime = schedDay.closeTime || '21:00';
-
-            // 找這個服務的時長，找不到就預設 60 分鐘
-            const svcMatch = services.find(s => s.name === bookingData.service);
-            const duration = svcMatch ? parseInt(svcMatch.duration) : 60;
-
-            const cutoffMs = new Date().getTime() + (minNoticeHours * 60 * 60 * 1000);
-
-            const [startH, startM] = openTime.split(':').map(Number);
-            const [endH,   endM  ] = closeTime.split(':').map(Number);
-
-            let cur = new Date(dateStr.replace(/-/g, '/') + ' 00:00:00');
-            cur.setHours(startH, startM, 0, 0);
-            const endLimit = new Date(dateStr.replace(/-/g, '/') + ' 00:00:00');
-            endLimit.setHours(endH, endM, 0, 0);
-
-            const slots = [];
-            while (cur.getTime() + duration * 60000 <= endLimit.getTime()) {
-                const sMs = cur.getTime();
-                const eMs = sMs + duration * 60000;
-
-                // 過濾已過期的時段
-                if (sMs <= cutoffMs) { cur.setMinutes(cur.getMinutes() + 30); continue; }
-
-                const bookedCount = (dayBookings || []).filter(b => sMs < b.end && eMs > b.start).length;
-                const calBlocked  = (calEvents   || []).some(ev  => sMs < ev.end && eMs > ev.start);
-
-                if (bookedCount < maxCapacity && !calBlocked) {
-                    const hh = String(cur.getHours()).padStart(2, '0');
-                    const mm = String(cur.getMinutes()).padStart(2, '0');
-                    slots.push(`${hh}:${mm}`);
-                }
-                cur.setMinutes(cur.getMinutes() + 30);
-            }
-            return slots;
         }
 
         function renderTimeSlots(slots) {

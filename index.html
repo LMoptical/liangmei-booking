@@ -6,6 +6,7 @@
     <title>良美眼鏡 - 線上預約</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" rel="stylesheet">
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f3f4f6; }
@@ -273,16 +274,62 @@
             window.scrollTo(0, 0); 
         }
 
+        // 服務對照表：名稱關鍵字 → icon、顏色、說明、分類
+        const SERVICE_MAP = [
+            { keywords: ['成人'],      icon: 'ti-eye',        bg: '#E6F1FB', color: '#185FA5', desc: '首次配鏡或換度數適用',   category: '驗光配鏡' },
+            { keywords: ['兒童','小孩'], icon: 'ti-mood-kid',   bg: '#EAF3DE', color: '#3B6D11', desc: '專業兒童視力檢查與配鏡', category: '驗光配鏡' },
+            { keywords: ['追蹤'],      icon: 'ti-chart-line', bg: '#FAEEDA', color: '#854F0B', desc: '定期追蹤度數變化',       category: '視力追蹤' },
+            { keywords: ['眼健康','篩查','健康'], icon: 'ti-heart-rate', bg: '#FBEAF0', color: '#993556', desc: '全面性眼部健康檢查', category: '眼健康' },
+            { keywords: ['換片','磨製','鏡片'], icon: 'ti-tool',  bg: '#EEEDFE', color: '#534AB7', desc: '保留原有鏡框換新鏡片', category: '其他服務' },
+        ];
+        const DEFAULT_STYLE = { icon: 'ti-eye-check', bg: '#F1EFE8', color: '#5F5E5A', desc: '', category: '其他服務' };
+
+        function getServiceStyle(name) {
+            for (const s of SERVICE_MAP) {
+                if (s.keywords.some(k => name.includes(k))) return s;
+            }
+            return DEFAULT_STYLE;
+        }
+
         function renderServices(settings) {
             const list = document.getElementById('services-list');
-            if(!settings.services || settings.services.length === 0) return list.innerHTML = '<p class="text-center py-10 text-slate-400">目前尚無開放服務</p>';
-            list.innerHTML = settings.services.map(s => `
-                <button onclick="selectService('${s.name}', ${s.duration})" class="w-full text-left bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:border-blue-600 transition-all flex justify-between items-center group">
-                    <h3 class="font-bold text-slate-800 group-hover:text-blue-800 transition-colors">${s.name}</h3>
-                    <div class="flex items-center text-slate-400 group-hover:text-blue-600">
-                        <span class="text-xs font-medium mr-2">${s.duration} 分鐘</span><i class="fa-solid fa-chevron-right text-xs"></i>
+            if (!settings.services || settings.services.length === 0) {
+                list.innerHTML = '<p style="text-align:center;padding:40px 0;color:var(--slate-400)">目前尚無開放服務</p>';
+                return;
+            }
+
+            // 依分類群組
+            const groups = {};
+            settings.services.forEach(s => {
+                const style = getServiceStyle(s.name);
+                if (!groups[style.category]) groups[style.category] = [];
+                groups[style.category].push({ ...s, style });
+            });
+
+            list.innerHTML = Object.entries(groups).map(([cat, items]) => `
+                <div style="margin-bottom:20px;">
+                    <div style="font-size:11px;font-weight:500;letter-spacing:0.06em;color:#94a3b8;text-transform:uppercase;margin-bottom:10px;padding-left:2px;">${cat}</div>
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        ${items.map(s => `
+                        <button onclick="selectService('${s.name}', ${s.duration})"
+                            style="width:100%;text-align:left;background:white;border:1px solid #e2e8f0;border-radius:16px;padding:14px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color 0.2s,box-shadow 0.2s;"
+                            onmouseover="this.style.borderColor='#3b82f6';this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'"
+                            onmouseout="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'">
+                            <div style="width:44px;height:44px;border-radius:10px;background:${s.style.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <i class="ti ${s.style.icon}" style="font-size:22px;color:${s.style.color};" aria-hidden="true"></i>
+                            </div>
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-size:15px;font-weight:500;color:#1e293b;">${s.name}</div>
+                                <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${s.style.desc}</div>
+                            </div>
+                            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;">
+                                <span style="font-size:11px;font-weight:500;color:${s.style.color};background:${s.style.bg};padding:3px 9px;border-radius:99px;">${s.duration} 分鐘</span>
+                                <i class="ti ti-chevron-right" style="font-size:15px;color:#cbd5e1;" aria-hidden="true"></i>
+                            </div>
+                        </button>
+                        `).join('')}
                     </div>
-                </button>
+                </div>
             `).join('');
         }
 
